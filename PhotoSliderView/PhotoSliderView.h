@@ -15,5 +15,6 @@
  UIImages;
  */
 @property (nonatomic,strong) NSArray* images;
+@property (nonatomic,strong) NSString* title;
 
 @end
