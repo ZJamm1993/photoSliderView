@@ -36,6 +36,18 @@ const NSInteger PageLabelTag=40;
     }
 }
 
+-(UITapGestureRecognizer*)defaultTapGestureRecognizer
+{
+    UITapGestureRecognizer *sigleTapRecognizer = [[UITapGestureRecognizer alloc]initWithTarget:self action:@selector(handleTapGesture:)];
+    return sigleTapRecognizer;
+}
+
+-(UILongPressGestureRecognizer*)defaultLongPressGestureRecognizer
+{
+    UILongPressGestureRecognizer* log=[[UILongPressGestureRecognizer alloc]initWithTarget:self action:@selector(handleLongPressGesture:)];
+    return log;
+}
+
 -(void)layoutImages
 {
     self.backgroundColor=[UIColor blackColor];
@@ -56,7 +68,11 @@ const NSInteger PageLabelTag=40;
     bgScrollview.delegate=self;
     bgScrollview.pagingEnabled=YES;
     bgScrollview.tag=ScrollViewBgTag;
+    bgScrollview.showsVerticalScrollIndicator=NO;
+    bgScrollview.showsHorizontalScrollIndicator=NO;
+    [bgScrollview addGestureRecognizer:[self defaultTapGestureRecognizer]];
     
+//    return;
     CGFloat bottomHeight=64;
     UIView* bottonView=[[UIView alloc]initWithFrame:CGRectMake(0, siz.height-bottomHeight, siz.width, bottomHeight)];
     bottonView.backgroundColor=[UIColor colorWithWhite:0 alpha:0.5];
@@ -81,6 +97,9 @@ const NSInteger PageLabelTag=40;
         imageBg.tag=ScrollViewImgTag;
         imageBg.maximumZoomScale=3;
         imageBg.minimumZoomScale=1;
+        imageBg.showsHorizontalScrollIndicator=NO;
+        imageBg.showsVerticalScrollIndicator=NO;
+        [imageBg addGestureRecognizer:[self defaultTapGestureRecognizer]];
         
         UIActivityIndicatorView* wheel=[[UIActivityIndicatorView alloc]initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhiteLarge];
         [wheel startAnimating];
@@ -90,6 +109,8 @@ const NSInteger PageLabelTag=40;
         UIImageView* imgeVi=[[UIImageView alloc]initWithFrame:imageBg.bounds];
         [imageBg addSubview:imgeVi];
         [bgScrollview addSubview:imageBg];
+        imgeVi.userInteractionEnabled=YES;
+        [imgeVi addGestureRecognizer:[self defaultLongPressGestureRecognizer]];
         
         NSObject* obj=[self.images objectAtIndex:i];
         
@@ -203,6 +224,121 @@ const NSInteger PageLabelTag=40;
             }
         }
         
+    }
+}
+
+#pragma mark - gesture
+
+-(void)handleTapGesture:(UIGestureRecognizer*)recognizer
+{
+    if([self.delegate respondsToSelector:@selector(photoSliderViewDidSinglePress:)])
+    {
+        [self.delegate photoSliderViewDidSinglePress:recognizer.view];
+    }
+}
+
+-(void)handleLongPressGesture:(UIGestureRecognizer*)recognizer
+{
+    if (recognizer.state != UIGestureRecognizerStateBegan)
+    {
+        return;
+    }
+    if([self.delegate respondsToSelector:@selector(photoSliderViewDidLongPress:)])
+    {
+        [self.delegate photoSliderViewDidLongPress:recognizer.view];
+    }
+}
+
+@end
+
+#pragma mark -view controller
+
+@interface PhotoSliderViewController()<PhotoSliderViewDelegate>
+
+@property (nonatomic,strong) PhotoSliderView* slideView;
+
+@end
+
+@implementation PhotoSliderViewController
+{
+}
+
++(UINavigationController*)navgationControllerWithPhotoSlider:(void(^)(PhotoSliderViewController* sliderController))configureBlock
+{
+    PhotoSliderViewController* vc=[[PhotoSliderViewController alloc]init];
+    UINavigationController* nav=[[UINavigationController alloc]initWithRootViewController:vc];
+    nav.navigationBar.barStyle=UIBarStyleBlack;
+    nav.navigationBar.tintColor=[UIColor whiteColor];
+    nav.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
+    if (configureBlock) {
+        configureBlock(vc);
+    }
+    return nav;
+}
+
+-(void)photoSliderViewDidSinglePress:(UIView *)view
+{
+     [self.navigationController setNavigationBarHidden:!self.navigationController.navigationBarHidden animated:YES];
+}
+
+-(void)photoSliderViewDidLongPress:(UIView *)view
+{
+    UIImage* img=nil;
+    if ([view isKindOfClass:[UIImageView class]]) {
+        UIImageView* imgView=(UIImageView*)view;
+        img=imgView.image;
+    }
+    if (self.longPressBlock) {
+        self.longPressBlock(img);
+    }
+}
+
+-(void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.automaticallyAdjustsScrollViewInsets=NO;
+    
+    self.slideView=[[PhotoSliderView alloc]initWithFrame:self.view.bounds];
+    self.slideView.images=self.images;
+    self.slideView.delegate=self;
+    [self.view addSubview:self.slideView];
+    
+    UIBarButtonItem* done=[[UIBarButtonItem alloc]initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(donePress)];
+    self.navigationItem.rightBarButtonItem=done;
+}
+
+-(void)setImages:(NSArray *)images
+{
+    _images=images;
+    self.slideView.images=images;
+}
+
+-(void)viewWillAppear:(BOOL)animated
+{
+    [super viewWillAppear:animated];
+//    [self.navigationController setNavigationBarHidden:YES animated:NO];
+}
+
+-(void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidAppear:animated];
+    self.slideView.images=self.images;
+}
+
+-(void)viewDidDisappear:(BOOL)animated
+{
+    [super viewDidDisappear:animated];
+    [self.navigationController setNavigationBarHidden:NO animated:NO];
+}
+
+-(void)donePress
+{
+    if (self==self.navigationController.viewControllers.firstObject||self.presentingViewController) {
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }
+    else
+    {
+        [self.navigationController popViewControllerAnimated:YES];
     }
 }
 
